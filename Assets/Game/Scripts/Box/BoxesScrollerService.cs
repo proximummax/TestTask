@@ -8,7 +8,7 @@ namespace Game.Scripts.Box
         private readonly BoxesScrollerView _boxesScrollerView;
         private readonly Transform _boxesParentAfterDrag;
 
-        private BoxesScrollerService(BoxesScrollerView boxesScrollerView, Transform boxesParentAfterDrag, BoxesSpawnerService boxesSpawnerService)
+        public BoxesScrollerService(BoxesScrollerView boxesScrollerView, Transform boxesParentAfterDrag)
         {
             _boxesScrollerView = boxesScrollerView;
             _boxesParentAfterDrag = boxesParentAfterDrag;

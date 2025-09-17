@@ -17,7 +17,7 @@ namespace Game.Scripts.DropZone
         private readonly Vector3 _topOfScreen = Vector3.zero;
         public List<BoxView> Tower { get; private set; } = new();
 
-        private TowerZoneService(GameConfig gameConfig, NotificationService notificationService)
+        public TowerZoneService(GameConfig gameConfig, NotificationService notificationService)
         {
             _notificationService = notificationService;
             _fallDownDuration = gameConfig.FallDownDuration;

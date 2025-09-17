@@ -16,7 +16,7 @@ namespace Game.Scripts.Box
 
         private List<BoxView> _boxes;
 
-        private BoxesSpawnerService(NotificationService notificationService,
+        public BoxesSpawnerService(NotificationService notificationService,
             GameConfig config,
             Func<Color, BoxView> boxFactory)
         {

@@ -52,7 +52,7 @@ namespace Game.Scripts.Box
                 .AddTo(boxView);
             boxView.EndDragTrigger.OnEndDragAsObservable().Subscribe(_boxesScrollerService.OnBoxEndDrag)
                 .AddTo(boxView);
-            boxView.Duplicate.ObserveEveryValueChanged(x => x.Value).Where(x => x)
+            boxView.Duplicate.Where(x => x != null)
                 .Subscribe(PlaceBoxViewDuplicate).AddTo(boxView);
         }
 

@@ -54,7 +54,7 @@ namespace Game.Scripts.Box
         
         public void BackToTower(float duration)
         {
-            transform.DOLocalMove(PositionInTower, 1);
+            transform.DOLocalMove(PositionInTower, duration);
         }
 
         public void SaveMoveEndPoint(Vector3 point)
