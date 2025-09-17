@@ -1,3 +1,6 @@
+# Technologies used:
+VContainer, UniRx, DotWeen
+
 # Description:
 The lower part of the screen is a horizontal scroll of 20 rectangles (hereinafter referred to as cubes) of different colors.
 Any of the cubes can be moved to the upper right part and placed on top of each other in the form of a tower with the following conditions:
