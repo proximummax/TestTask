@@ -10,7 +10,8 @@ namespace Game.Scripts.Notifications
         protected override void Configure(IContainerBuilder builder)
         {
             builder.RegisterComponent(_notificationView);
-            builder.RegisterEntryPoint<NotificationService>().AsSelf();
+            builder.Register<NotificationService>(Lifetime.Singleton).As<INotificationService>();
+            builder.RegisterEntryPoint<NotificationPresenter>();
         }
     }
 }

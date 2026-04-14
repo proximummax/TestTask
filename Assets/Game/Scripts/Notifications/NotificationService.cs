@@ -1,22 +1,17 @@
-using UniRx;
-using VContainer.Unity;
+using System;
 
 namespace Game.Scripts.Notifications
 {
-    public class NotificationService : IStartable
+    public class NotificationService : INotificationService
     {
-        private readonly NotificationView _notificationView;
-        public ReactiveProperty<string> NotificationMessage { get; private set; } = new();
+        public event Action<string> MessagePublished;
 
-        private NotificationService(NotificationView notificationView)
-        {
-            _notificationView = notificationView;
-        }
+        public string CurrentMessage { get; private set; } = string.Empty;
 
-        public void Start()
+        public void Show(string message)
         {
-            NotificationMessage.ObserveEveryValueChanged(x => x.Value)
-                .Subscribe(xs => { _notificationView.ShowNotification(xs); }).AddTo(_notificationView);
+            CurrentMessage = message;
+            MessagePublished?.Invoke(message);
         }
     }
 }

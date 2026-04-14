@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace Game.Scripts.Notifications
 {
+    [DisallowMultipleComponent]
     public class NotificationView : MonoBehaviour
     {
         [SerializeField] private TextMeshProUGUI _text;
@@ -12,6 +13,5 @@ namespace Game.Scripts.Notifications
             gameObject.SetActive(true);
             _text.text = notification;
         }
-        
     }
 }
