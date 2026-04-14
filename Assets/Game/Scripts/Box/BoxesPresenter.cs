@@ -1,67 +1,36 @@
-using System.Collections.Generic;
 using Game.Scripts.Storage;
-using UniRx;
-using VContainer.Unity;
+using System.Collections.Generic;
 
 namespace Game.Scripts.Box
 {
-    public class BoxesPresenter : IStartable
+    public class BoxesPresenter
     {
-        private readonly BoxesScrollerService _boxesScrollerService;
         private readonly BoxesSpawnerService _boxesSpawnerService;
+        private readonly BoxesScrollerService _boxesScrollerService;
 
-        public BoxesPresenter(BoxesScrollerService boxesScrollerService, BoxesSpawnerService boxesSpawnerService)
+        public BoxesPresenter(BoxesSpawnerService boxesSpawnerService, BoxesScrollerService boxesScrollerService)
         {
-            _boxesScrollerService = boxesScrollerService;
             _boxesSpawnerService = boxesSpawnerService;
+            _boxesScrollerService = boxesScrollerService;
         }
 
-        public void Start()
+        public void CreateInitialBoxes()
         {
-            CreateScrollViewBoxesAndSubscribeEvents();
+            _boxesSpawnerService.CreateInitialBoxes();
         }
-        
-        public BoxView[] CreateBoxesByLoadData(List<BoxSaveParameters> boxSaveParameters)
+
+        public BoxView[] CreateBoxesByLoadData(IReadOnlyList<BoxSaveParameters> boxSaveParameters)
         {
-            BoxView[] boxViews = new BoxView[boxSaveParameters.Count];
+            var boxViews = new BoxView[boxSaveParameters.Count];
             for (int i = 0; i < boxSaveParameters.Count; i++)
             {
                 var boxSaveParameter = boxSaveParameters[i];
-                var box = _boxesSpawnerService.CreateBox(boxSaveParameter.Color);
-                SubscribeBoxEvents(box);
-                
-                _boxesScrollerService.SetBoxNewParent(box, out var siblingIndex);
-                boxViews[i] = box;
+                var boxView = _boxesSpawnerService.CreateBox(boxSaveParameter.Color);
+                _boxesScrollerService.MoveBoxToDragLayer(boxView);
+                boxViews[i] = boxView;
             }
 
             return boxViews;
-        }
-
-        private void CreateScrollViewBoxesAndSubscribeEvents()
-        {
-            var boxes = _boxesSpawnerService.CreateBoxes();
-            foreach (var box in boxes)
-            {
-                SubscribeBoxEvents(box);
-            }
-        }
-
-        private void SubscribeBoxEvents(BoxView boxView)
-        {
-            boxView.BeginDragTrigger.OnBeginDragAsObservable().Subscribe(_boxesScrollerService.OnBoxBeginDrag)
-                .AddTo(boxView);
-            boxView.EndDragTrigger.OnEndDragAsObservable().Subscribe(_boxesScrollerService.OnBoxEndDrag)
-                .AddTo(boxView);
-            boxView.Duplicate.Where(x => x != null)
-                .Subscribe(PlaceBoxViewDuplicate).AddTo(boxView);
-        }
-
-        private void PlaceBoxViewDuplicate(BoxView boxView)
-        {
-            _boxesScrollerService.SetBoxNewParent(boxView, out var oldSiblingIndex);
-            var newBox = _boxesSpawnerService.CreateBox(boxView.Color);
-            SubscribeBoxEvents(newBox);
-            newBox.transform.SetSiblingIndex(oldSiblingIndex);
         }
     }
 }

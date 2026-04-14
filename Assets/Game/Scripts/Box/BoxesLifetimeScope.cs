@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using VContainer;
 using VContainer.Unity;
@@ -16,22 +15,15 @@ namespace Game.Scripts.Box
         {
             builder.RegisterComponent(_boxParentAfterDrag);
             builder.RegisterComponent(_boxesScrollerView);
-            
-            builder.Register<BoxesSpawnerService>(Lifetime.Singleton);
             builder.Register<BoxesScrollerService>(Lifetime.Singleton);
-
-       
-            builder.RegisterEntryPoint<BoxesPresenter>().AsSelf();
-            
-            
-            builder.Register<Func<Color, BoxView>>(
-                container => color =>
+            builder.Register<BoxesSpawnerService>(Lifetime.Singleton);
+            builder.Register<BoxInteractionService>(Lifetime.Singleton);
+            builder.Register<System.Func<BoxView>>(
+                container => () =>
                 {
-                    var boxView = container.Instantiate(_boxViewPrefab, _boxesContainer);
-                    boxView.Color = color;
-                    return boxView;
-                }, Lifetime.Scoped);
-            
+                    return container.Instantiate(_boxViewPrefab, _boxesContainer);
+                }, Lifetime.Singleton);
+            builder.Register<BoxesPresenter>(Lifetime.Singleton);
         }
     }
 }

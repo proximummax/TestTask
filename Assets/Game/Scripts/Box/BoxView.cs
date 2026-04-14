@@ -1,7 +1,5 @@
 using DG.Tweening;
-using UniRx;
-using UniRx.Triggers;
-using Unity.VisualScripting;
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -9,92 +7,125 @@ using VContainer;
 
 namespace Game.Scripts.Box
 {
-    public class BoxView : MonoBehaviour
+    [RequireComponent(typeof(Image), typeof(CanvasGroup), typeof(BoxCollider2D), typeof(RectTransform))]
+    public class BoxView : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
-        public enum EBoxPlacementPoint
-        {
-            ScrollView,
-            Tower
-        }
-
         private Image _image;
         private CanvasGroup _canvasGroup;
         private float _scaleFactor;
-        
+        private BoxInteractionService _boxInteractionService;
+
         public BoxCollider2D BoxCollider { get; private set; }
-        public EBoxPlacementPoint PlacementPoint { get; set; }
+        public BoxPlacementPoint PlacementPoint { get; private set; } = BoxPlacementPoint.ScrollView;
         public RectTransform RectTransform { get; private set; }
         public Vector3 PositionInTower { get; private set; } = Vector3.zero;
-        public Color Color
-        {
-            get => _image.color;
-            set => _image.color = value;
-        }
-
-        public ObservableBeginDragTrigger BeginDragTrigger { get; private set; }
-        public ObservableEndDragTrigger EndDragTrigger { get; private set; }
-        public ReactiveProperty<BoxView> Duplicate { get; private set; } = new();
+        public bool IsDestroyScheduled { get; private set; }
+        public Color Color => _image.color;
 
         [Inject]
-        private void Init(Canvas gameFieldCanvas)
+        private void Init(Canvas gameFieldCanvas, BoxInteractionService boxInteractionService)
         {
             _scaleFactor = gameFieldCanvas.scaleFactor;
+            _boxInteractionService = boxInteractionService;
+        }
+
+        private void Awake()
+        {
             _image = GetComponent<Image>();
             _canvasGroup = GetComponent<CanvasGroup>();
             BoxCollider = GetComponent<BoxCollider2D>();
-
             RectTransform = GetComponent<RectTransform>();
-            BeginDragTrigger = this.AddComponent<ObservableBeginDragTrigger>();
-            BeginDragTrigger.OnBeginDragAsObservable().Subscribe(OnBeginDrag).AddTo(this);
-
-            EndDragTrigger = this.AddComponent<ObservableEndDragTrigger>();
-            EndDragTrigger.OnEndDragAsObservable().Subscribe(OnEndDrag).AddTo(this);
-            this.AddComponent<ObservableDragTrigger>().OnDragAsObservable().Subscribe(OnDrag).AddTo(this);
         }
-        
+
+        public void SetColor(Color color)
+        {
+            _image.color = color;
+        }
+
+        public void SetPlacementPoint(BoxPlacementPoint placementPoint)
+        {
+            PlacementPoint = placementPoint;
+        }
+
         public void BackToTower(float duration)
         {
-            transform.DOLocalMove(PositionInTower, duration);
+            MoveTo(PositionInTower, duration);
         }
 
-        public void SaveMoveEndPoint(Vector3 point)
+        public void PlaceIntoTower(Vector3 point)
         {
+            PlacementPoint = BoxPlacementPoint.Tower;
             PositionInTower = point;
         }
-        
+
+        public void MoveBy(Vector2 delta)
+        {
+            RectTransform.anchoredPosition += delta;
+        }
+
+        public void MoveTo(Vector3 point, float duration, Action onComplete = null)
+        {
+            transform.DOLocalMove(point, duration).OnComplete(() => onComplete?.Invoke());
+        }
+
+        public void SnapTo(Vector3 point)
+        {
+            transform.localPosition = point;
+        }
+
+        public void SetParent(Transform parent)
+        {
+            transform.SetParent(parent);
+        }
+
+        public int GetSiblingIndex()
+        {
+            return transform.GetSiblingIndex();
+        }
+
+        public void SetSiblingIndex(int siblingIndex)
+        {
+            transform.SetSiblingIndex(siblingIndex);
+        }
+
+        public void SetDragState(bool isDragging)
+        {
+            if (IsDestroyScheduled)
+            {
+                return;
+            }
+
+            _canvasGroup.alpha = isDragging ? 0.8f : 1.0f;
+            _canvasGroup.blocksRaycasts = !isDragging;
+        }
+
         public void SmoothDestroy(float duration)
         {
+            if (IsDestroyScheduled)
+            {
+                return;
+            }
+
+            IsDestroyScheduled = true;
             BoxCollider.enabled = false;
+            _canvasGroup.blocksRaycasts = false;
             DOTween.To(() => _canvasGroup.alpha, x => _canvasGroup.alpha = x, 0, duration)
                 .OnComplete(delegate { Destroy(gameObject); });
         }
 
-        private void OnBeginDrag(PointerEventData eventData)
+        public void OnBeginDrag(PointerEventData eventData)
         {
-            if (PlacementPoint == EBoxPlacementPoint.ScrollView)
-            {
-                Duplicate.Value = this;
-            }
-
-            _canvasGroup.alpha = 0.8f;
-            _canvasGroup.blocksRaycasts = false;
+            _boxInteractionService.HandleBeginDrag(this);
         }
 
-        private void OnEndDrag(PointerEventData eventData)
+        public void OnDrag(PointerEventData eventData)
         {
-            if (PlacementPoint != EBoxPlacementPoint.Tower)
-            {
-                SmoothDestroy(1.5f);
-                return;
-            }
-
-            _canvasGroup.alpha = 1.0f;
-            _canvasGroup.blocksRaycasts = true;
+            _boxInteractionService.HandleDrag(this, eventData.delta / _scaleFactor);
         }
 
-        private void OnDrag(PointerEventData eventData)
+        public void OnEndDrag(PointerEventData eventData)
         {
-            RectTransform.anchoredPosition += eventData.delta / _scaleFactor;
+            _boxInteractionService.HandleEndDrag(this);
         }
     }
 }

@@ -1,22 +1,21 @@
 using UnityEngine;
 using UnityEngine.UI;
-using VContainer;
 
 namespace Game.Scripts.Box
 {
+    [RequireComponent(typeof(ScrollRect))]
     public class BoxesScrollerView : MonoBehaviour
     {
         private ScrollRect _scrollRect;
-        private GameObject _mask;
-        [Inject]
-        private void Init()
+
+        private void Awake()
         {
             _scrollRect = GetComponent<ScrollRect>();
         }
 
-        public void SetScrollAvailableState(bool available)
+        public void SetScrollEnabled(bool isEnabled)
         {
-            _scrollRect.enabled = available;
+            _scrollRect.enabled = isEnabled;
         }
     }
 }

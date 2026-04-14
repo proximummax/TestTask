@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 namespace Game.Scripts.Box
 {
@@ -14,25 +13,16 @@ namespace Game.Scripts.Box
             _boxesParentAfterDrag = boxesParentAfterDrag;
         }
 
-        public void OnBoxBeginDrag(PointerEventData eventData)
+        public void SetScrollEnabled(bool isEnabled)
         {
-            SetScrollAvailableState(false);
+            _boxesScrollerView.SetScrollEnabled(isEnabled);
         }
 
-        public void OnBoxEndDrag(PointerEventData eventData)
+        public int MoveBoxToDragLayer(BoxView boxView)
         {
-            SetScrollAvailableState(true);
-        }
-
-        public void SetBoxNewParent(BoxView boxView,out int oldSiblingIndex)
-        {
-            oldSiblingIndex = boxView.transform.GetSiblingIndex();
-            boxView.transform.SetParent(_boxesParentAfterDrag);
-        }
-        
-        private void SetScrollAvailableState(bool available)
-        {
-            _boxesScrollerView.SetScrollAvailableState(available);
+            var siblingIndex = boxView.GetSiblingIndex();
+            boxView.SetParent(_boxesParentAfterDrag);
+            return siblingIndex;
         }
     }
 }
