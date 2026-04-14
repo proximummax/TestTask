@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using DG.Tweening;
 using Game.Scripts.Box;
 using Game.Scripts.Notifications;
 using Game.Scripts.ScriptableObjects;
@@ -10,14 +9,16 @@ namespace Game.Scripts.DropZone
 {
     public class TowerZoneService
     {
-        private readonly NotificationService _notificationService;
+        private readonly INotificationService _notificationService;
         private readonly float _fallDownDuration;
         private readonly float _hideDuration;
+        private readonly List<BoxView> _tower = new();
+        private readonly float _topScreenY;
+        private readonly bool _hasTopScreenBoundary;
 
-        private readonly Vector3 _topOfScreen = Vector3.zero;
-        public List<BoxView> Tower { get; private set; } = new();
+        public IReadOnlyList<BoxView> Tower => _tower;
 
-        public TowerZoneService(GameConfig gameConfig, NotificationService notificationService)
+        public TowerZoneService(GameConfig gameConfig, INotificationService notificationService)
         {
             _notificationService = notificationService;
             _fallDownDuration = gameConfig.FallDownDuration;
@@ -25,139 +26,163 @@ namespace Game.Scripts.DropZone
 
             if (Camera.main != null)
             {
-                _topOfScreen = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width, Screen.height, Camera.main.transform.position.z));
+                _topScreenY = Camera.main
+                    .ScreenToWorldPoint(new Vector3(0f, Screen.height, Mathf.Abs(Camera.main.transform.position.z))).y;
+                _hasTopScreenBoundary = true;
             }
         }
 
-        public void PlaceBoxInTower(BoxView box, Vector3 position, bool permanent)
+        public void PlaceLoadedBox(BoxView box, Vector3 position)
         {
-            _notificationService.NotificationMessage.Value = AppMessages.BOX_PLACED_MESSAGE;
-
-            if (permanent)
-            {
-                box.transform.localPosition = position;
-                if (IsBoxTouchTopOfScreen(box))
-                {
-                    _notificationService.NotificationMessage.Value = AppMessages.TOP_SCREEN_MESSAGE;
-                }
-            }
-            else
-            {
-                box.transform.DOLocalMove(position, _fallDownDuration).OnComplete(delegate
-                {
-                    if (IsBoxTouchTopOfScreen(box))
-                    {
-                        _notificationService.NotificationMessage.Value = AppMessages.TOP_SCREEN_MESSAGE;
-                    }
-                });
-            }
-
-            box.PlacementPoint = BoxView.EBoxPlacementPoint.Tower;
-            box.SaveMoveEndPoint(position);
-
-            if (!Tower.Contains(box))
-            {
-                Tower.Add(box);
-            }
-        }
-
-        private bool IsBoxTouchTopOfScreen(BoxView box)
-        {
-            return box.transform.position.y + box.BoxCollider.bounds.extents.y >= _topOfScreen.y;
+            PlaceBox(box, position, false);
         }
 
         public void TryPlaceBox(BoxView boxToPlace)
         {
-            if (Tower.Count <= 0)
+            if (_tower.Count == 0)
             {
-                PlaceBoxInTower(boxToPlace, boxToPlace.transform.localPosition, true);
+                PlaceBox(boxToPlace, boxToPlace.transform.localPosition, false);
+                return;
             }
-            else
+
+            if (TryGetPlacementAboveTower(boxToPlace, out var positionToMove))
             {
-                RaycastHit2D hit = Physics2D.Raycast(boxToPlace.transform.position, -Vector2.up);
-
-                if (hit && hit.collider.gameObject.TryGetComponent(out BoxView underBox) &&
-                    IsBoxCanPlaceAtTopOfTower(boxToPlace, underBox))
-                {
-                    Vector3 positionToMove = new Vector3(boxToPlace.transform.localPosition.x,
-                        underBox.transform.localPosition.y + underBox.RectTransform.rect.height,
-                        boxToPlace.transform.localPosition.z);
-
-                    PlaceBoxInTower(boxToPlace, positionToMove, false);
-                }
-                else
-                {
-                    boxToPlace.SmoothDestroy(_hideDuration);
-                    _notificationService.NotificationMessage.Value = AppMessages.ERROR_PLACED_MESSAGE;
-                }
+                PlaceBox(boxToPlace, positionToMove, true);
+                return;
             }
+
+            boxToPlace.SmoothDestroy(_hideDuration);
+            _notificationService.Show(AppMessages.ErrorPlaced);
         }
 
         public void RemoveBoxFromTower(BoxView boxToRemove)
         {
-            if (Tower.Count <= 0)
+            if (_tower.Count == 0)
+            {
                 return;
+            }
 
-            RemoveBoxFromTower(boxToRemove, out int stashedBoxIndex);
-            MoveBlocksDown(stashedBoxIndex);
-        }
+            var removedBoxIndex = _tower.IndexOf(boxToRemove);
+            if (removedBoxIndex < 0)
+            {
+                return;
+            }
 
-        private void RemoveBoxFromTower(BoxView boxToRemove, out int removedBoxIndex)
-        {
-            removedBoxIndex = Tower.IndexOf(boxToRemove);
-            Tower.RemoveAt(removedBoxIndex);
-            boxToRemove.SmoothDestroy(_hideDuration);
-
-            _notificationService.NotificationMessage.Value = AppMessages.BOX_REMOVED_MESSAGE;
+            DestroyTowerBoxAt(removedBoxIndex);
+            MoveBlocksDown(removedBoxIndex);
         }
 
         private void MoveBlocksDown(int startBlock)
         {
-            for (int i = startBlock; i < Tower.Count; i++)
+            for (int i = startBlock; i < _tower.Count; i++)
             {
-                var boxToPlace = Tower[i];
-
-                RaycastHit2D hit = Physics2D.Raycast(boxToPlace.transform.position, -Vector2.up);
-
-                if (hit && hit.collider.gameObject.TryGetComponent(out BoxView underBox) &&
-                    CanBoxMoveDown(boxToPlace, underBox))
+                var boxToPlace = _tower[i];
+                if (TryGetFallPosition(boxToPlace, out var positionToMove))
                 {
-                    float posY = underBox.PositionInTower == Vector3.zero
-                        ? hit.transform.localPosition.y + underBox.RectTransform.rect.height
-                        : underBox.PositionInTower.y + underBox.RectTransform.rect.height;
-
-                    Vector3 positionToMove = new Vector3(boxToPlace.transform.localPosition.x, posY,
-                        boxToPlace.transform.localPosition.z);
-
-                    PlaceBoxInTower(boxToPlace, positionToMove, false);
+                    PlaceBox(boxToPlace, positionToMove, true);
                 }
                 else
                 {
-                    RemoveBoxFromTower(boxToPlace, out int removedBoxIndex);
+                    DestroyTowerBoxAt(i);
                     i--;
                 }
             }
         }
 
-
-        private bool CanBoxMoveDown(BoxView boxToMove, BoxView boxUnder)
+        private void PlaceBox(BoxView box, Vector3 position, bool animate)
         {
-            int boxToMoveIndex = Tower.IndexOf(boxToMove);
-            int boxUnderIndex = Tower.IndexOf(boxUnder);
+            _notificationService.Show(AppMessages.BoxPlaced);
 
-            return IsBoxesCanPlaceInTower() && Tower.Contains(boxUnder) &&
-                   Mathf.Abs(boxToMoveIndex - boxUnderIndex) == 1;
+            if (animate)
+            {
+                box.MoveTo(position, _fallDownDuration, () => NotifyIfTopReached(box));
+            }
+            else
+            {
+                box.SnapTo(position);
+                NotifyIfTopReached(box);
+            }
+
+            box.PlaceIntoTower(position);
+            if (!_tower.Contains(box))
+            {
+                _tower.Add(box);
+            }
         }
 
-        private bool IsBoxCanPlaceAtTopOfTower(BoxView boxToPlace, BoxView boxUnder)
+        private void DestroyTowerBoxAt(int index)
         {
-            return IsBoxesCanPlaceInTower() && Tower[^1] == boxUnder;
-            //TODO: For example check the color
+            var boxToRemove = _tower[index];
+            _tower.RemoveAt(index);
+            boxToRemove.SmoothDestroy(_hideDuration);
+            _notificationService.Show(AppMessages.BoxRemoved);
         }
 
-        private bool IsBoxesCanPlaceInTower()
+        private bool TryGetPlacementAboveTower(BoxView boxToPlace, out Vector3 positionToMove)
         {
-            return Tower != null;
+            positionToMove = default;
+
+            RaycastHit2D hit = Physics2D.Raycast(boxToPlace.transform.position, Vector2.down);
+            if (!hit || !hit.collider.gameObject.TryGetComponent(out BoxView underBox))
+            {
+                return false;
+            }
+
+            if (_tower.Count == 0 || _tower[^1] != underBox)
+            {
+                return false;
+            }
+
+            positionToMove = new Vector3(
+                boxToPlace.transform.localPosition.x,
+                underBox.PositionInTower.y + underBox.RectTransform.rect.height,
+                boxToPlace.transform.localPosition.z);
+
+            return true;
+        }
+
+        private bool TryGetFallPosition(BoxView boxToPlace, out Vector3 positionToMove)
+        {
+            positionToMove = default;
+
+            RaycastHit2D hit = Physics2D.Raycast(boxToPlace.transform.position, Vector2.down);
+            if (!hit || !hit.collider.gameObject.TryGetComponent(out BoxView underBox))
+            {
+                return false;
+            }
+
+            if (!_tower.Contains(underBox))
+            {
+                return false;
+            }
+
+            var boxToMoveIndex = _tower.IndexOf(boxToPlace);
+            var boxUnderIndex = _tower.IndexOf(underBox);
+            if (Mathf.Abs(boxToMoveIndex - boxUnderIndex) != 1)
+            {
+                return false;
+            }
+
+            positionToMove = new Vector3(
+                boxToPlace.transform.localPosition.x,
+                underBox.PositionInTower.y + underBox.RectTransform.rect.height,
+                boxToPlace.transform.localPosition.z);
+
+            return true;
+        }
+
+        private void NotifyIfTopReached(BoxView box)
+        {
+            if (IsBoxTouchTopOfScreen(box))
+            {
+                _notificationService.Show(AppMessages.TopScreenReached);
+            }
+        }
+
+        private bool IsBoxTouchTopOfScreen(BoxView box)
+        {
+            return _hasTopScreenBoundary &&
+                   box.transform.position.y + box.BoxCollider.bounds.extents.y >= _topScreenY;
         }
     }
 }
