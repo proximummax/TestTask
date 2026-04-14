@@ -13,20 +13,21 @@ namespace Game.Scripts.Box
         private Image _image;
         private CanvasGroup _canvasGroup;
         private float _scaleFactor;
-        private BoxInteractionService _boxInteractionService;
+        private BoxController _boxController;
+        private BoxModel _model;
 
         public BoxCollider2D BoxCollider { get; private set; }
-        public BoxPlacementPoint PlacementPoint { get; private set; } = BoxPlacementPoint.ScrollView;
+        public BoxPlacementPoint PlacementPoint => _model != null ? _model.PlacementPoint : BoxPlacementPoint.ScrollView;
         public RectTransform RectTransform { get; private set; }
-        public Vector3 PositionInTower { get; private set; } = Vector3.zero;
-        public bool IsDestroyScheduled { get; private set; }
-        public Color Color => _image.color;
+        public Vector3 PositionInTower => _model != null ? _model.PositionInTower : Vector3.zero;
+        public bool IsDestroyScheduled => _model != null && _model.IsDestroyScheduled;
+        public Color Color => _model != null ? _model.Color : _image.color;
 
         [Inject]
-        private void Init(Canvas gameFieldCanvas, BoxInteractionService boxInteractionService)
+        private void Init(Canvas gameFieldCanvas, BoxController boxController)
         {
             _scaleFactor = gameFieldCanvas.scaleFactor;
-            _boxInteractionService = boxInteractionService;
+            _boxController = boxController;
         }
 
         private void Awake()
@@ -37,14 +38,10 @@ namespace Game.Scripts.Box
             RectTransform = GetComponent<RectTransform>();
         }
 
-        public void SetColor(Color color)
+        public void Bind(BoxModel model)
         {
-            _image.color = color;
-        }
-
-        public void SetPlacementPoint(BoxPlacementPoint placementPoint)
-        {
-            PlacementPoint = placementPoint;
+            _model = model;
+            _image.color = model.Color;
         }
 
         public void BackToTower(float duration)
@@ -54,8 +51,7 @@ namespace Game.Scripts.Box
 
         public void PlaceIntoTower(Vector3 point)
         {
-            PlacementPoint = BoxPlacementPoint.Tower;
-            PositionInTower = point;
+            _model.PlaceIntoTower(point);
         }
 
         public void MoveBy(Vector2 delta)
@@ -106,7 +102,7 @@ namespace Game.Scripts.Box
                 return;
             }
 
-            IsDestroyScheduled = true;
+            _model.MarkDestroyScheduled();
             BoxCollider.enabled = false;
             _canvasGroup.blocksRaycasts = false;
             DOTween.To(() => _canvasGroup.alpha, x => _canvasGroup.alpha = x, 0, duration)
@@ -115,17 +111,17 @@ namespace Game.Scripts.Box
 
         public void OnBeginDrag(PointerEventData eventData)
         {
-            _boxInteractionService.HandleBeginDrag(this);
+            _boxController.HandleBeginDrag(this);
         }
 
         public void OnDrag(PointerEventData eventData)
         {
-            _boxInteractionService.HandleDrag(this, eventData.delta / _scaleFactor);
+            _boxController.HandleDrag(this, eventData.delta / _scaleFactor);
         }
 
         public void OnEndDrag(PointerEventData eventData)
         {
-            _boxInteractionService.HandleEndDrag(this);
+            _boxController.HandleEndDrag(this);
         }
     }
 }

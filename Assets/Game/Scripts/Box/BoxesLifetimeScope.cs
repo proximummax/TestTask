@@ -17,7 +17,7 @@ namespace Game.Scripts.Box
             builder.RegisterComponent(_boxesScrollerView);
             builder.Register<BoxesScrollerService>(Lifetime.Singleton);
             builder.Register<BoxesSpawnerService>(Lifetime.Singleton);
-            builder.Register<BoxInteractionService>(Lifetime.Singleton);
+            builder.Register<BoxController>(Lifetime.Singleton);
             builder.Register<System.Func<BoxView>>(
                 container => () =>
                 {

@@ -25,9 +25,9 @@ namespace Game.Scripts.Box
 
         public BoxView CreateBox(Color color)
         {
+            var boxModel = new BoxModel(color);
             var boxView = _boxFactory();
-            boxView.SetColor(color);
-            boxView.SetPlacementPoint(BoxPlacementPoint.ScrollView);
+            boxView.Bind(boxModel);
             return boxView;
         }
 

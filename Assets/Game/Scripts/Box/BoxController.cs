@@ -3,13 +3,13 @@ using UnityEngine;
 
 namespace Game.Scripts.Box
 {
-    public class BoxInteractionService
+    public class BoxController
     {
         private readonly BoxesScrollerService _boxesScrollerService;
         private readonly BoxesSpawnerService _boxesSpawnerService;
         private readonly float _hideDuration;
 
-        public BoxInteractionService(
+        public BoxController(
             BoxesScrollerService boxesScrollerService,
             BoxesSpawnerService boxesSpawnerService,
             GameConfig gameConfig)
