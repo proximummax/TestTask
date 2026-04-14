@@ -1,10 +1,13 @@
 using System.Collections.Generic;
 using Game.Scripts.Box;
 using Game.Scripts.DropZone;
+using System;
+using UnityEngine;
+using VContainer.Unity;
 
 namespace Game.Scripts.Storage
 {
-    public class StorageBoxesService
+    public class StorageBoxesService : IStartable, IDisposable
     {
         private readonly TowerZoneService _towerZoneService;
         private readonly BoxesPresenter _boxesPresenter;
@@ -17,23 +20,27 @@ namespace Game.Scripts.Storage
             _boxesPresenter = boxesPresenter;
             _towerZoneService = towerZoneService;
             _persistence = persistence;
-            LoadGame();
         }
 
-        private void LoadGame()
+        public void Start()
         {
+            Application.quitting += SaveGame;
+
             var boxesParameters = _persistence.Load(SaveFileName);
-            if (boxesParameters == null || boxesParameters.Count == 0)
+            if (boxesParameters.Count == 0)
+            {
+                _boxesPresenter.CreateInitialBoxes();
                 return;
+            }
 
             var boxes = _boxesPresenter.CreateBoxesByLoadData(boxesParameters);
             for (int i = 0; i < boxes.Length; i++)
             {
-                _towerZoneService.PlaceBoxInTower(boxes[i], boxesParameters[i].Position, true);
+                _towerZoneService.PlaceLoadedBox(boxes[i], boxesParameters[i].Position);
             }
         }
 
-        public void SaveGame(bool deleteOldSave)
+        public void SaveGame()
         {
             var saveData = new List<BoxSaveParameters>(_towerZoneService.Tower.Count);
             for (int i = 0; i < _towerZoneService.Tower.Count; i++)
@@ -42,7 +49,12 @@ namespace Game.Scripts.Storage
                 saveData.Add(new BoxSaveParameters(box.Color, box.PositionInTower));
             }
 
-            _persistence.Save(SaveFileName, saveData, deleteOldSave);
+            _persistence.Save(SaveFileName, saveData);
+        }
+
+        public void Dispose()
+        {
+            Application.quitting -= SaveGame;
         }
     }
 }

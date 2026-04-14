@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Game.Scripts.Storage
 {
     [Serializable]
-    public class BoxSaveParameters
+    public struct BoxSaveParameters
     {
         public BoxSaveParameters(Color color, Vector3 position)
         {
@@ -16,5 +16,3 @@ namespace Game.Scripts.Storage
         public Vector3 Position;
     }
 }
-
-

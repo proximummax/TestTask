@@ -4,9 +4,7 @@ namespace Game.Scripts.Storage
 {
     public interface IBoxesPersistence
     {
-        List<BoxSaveParameters> Load(string saveName);
-        void Save(string saveName, List<BoxSaveParameters> data, bool overwrite);
+        IReadOnlyList<BoxSaveParameters> Load(string saveName);
+        void Save(string saveName, IReadOnlyList<BoxSaveParameters> data);
     }
 }
-
-

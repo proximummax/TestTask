@@ -13,7 +13,7 @@ namespace Game.Scripts.Storage
             public List<BoxSaveParameters> Boxes = new();
         }
 
-        public List<BoxSaveParameters> Load(string saveName)
+        public IReadOnlyList<BoxSaveParameters> Load(string saveName)
         {
             var path = GetFilePath(saveName);
             if (!File.Exists(path))
@@ -31,15 +31,11 @@ namespace Game.Scripts.Storage
             return container?.Boxes ?? new List<BoxSaveParameters>();
         }
 
-        public void Save(string saveName, List<BoxSaveParameters> data, bool overwrite)
+        public void Save(string saveName, IReadOnlyList<BoxSaveParameters> data)
         {
             var path = GetFilePath(saveName);
-            if (overwrite && File.Exists(path))
-            {
-                File.Delete(path);
-            }
-
-            var container = new BoxesSaveData { Boxes = data };
+            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? Application.persistentDataPath);
+            var container = new BoxesSaveData { Boxes = new List<BoxSaveParameters>(data) };
             var json = JsonUtility.ToJson(container);
             File.WriteAllText(path, json);
         }
@@ -47,9 +43,7 @@ namespace Game.Scripts.Storage
         private static string GetFilePath(string saveName)
         {
             var fileName = saveName.EndsWith(".json") ? saveName : saveName + ".json";
-            return Application.persistentDataPath + "/" + fileName;
+            return Path.Combine(Application.persistentDataPath, fileName);
         }
     }
 }
-
-
